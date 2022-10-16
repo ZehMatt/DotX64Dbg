@@ -28,8 +28,7 @@ namespace Dotx64Dbg::Native
             duint readSize = 0;
             if (!Script::Memory::Read(va, buf, length, &readSize))
             {
-                array<System::Byte>::Resize(res, 0);
-                return res;
+                return nullptr;
             }
 
             array<System::Byte>::Resize(res, (int)readSize);
