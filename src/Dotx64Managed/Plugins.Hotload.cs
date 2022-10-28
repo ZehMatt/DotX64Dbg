@@ -459,7 +459,7 @@ namespace Dotx64Dbg
 
         }
 
-        void LoadPluginInstance(Plugin plugin, CancellationToken token)
+        void LoadPluginInstanceUnsafe(Plugin plugin, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
 
@@ -469,7 +469,7 @@ namespace Dotx64Dbg
             LoadPluginInstanceRecursive(plugin, plugin.Instance, new(), token);
         }
 
-        bool ReloadPlugin(Plugin plugin, string newAssemblyPath, CancellationToken token)
+        void ReloadPluginUnsafe(Plugin plugin, string newAssemblyPath, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
 
@@ -598,33 +598,44 @@ namespace Dotx64Dbg
                 plugin.Loader = loader;
                 plugin.AssemblyPath = newAssemblyPath;
 
-                LoadPluginInstance(plugin, token);
+                LoadPluginInstanceUnsafe(plugin, token);
 
                 Menus.AddPluginMenu(plugin);
             }
             catch (Exception ex)
             {
                 Utils.PrintException(ex);
-                return false;
+                return;
             }
 
             Console.WriteLine($"{(isReload ? "Reloaded" : "Loaded")} '{plugin.Info.Name}'");
-            return true;
+        }
+
+        void ReloadPlugin(Plugin plugin, string newAssemblyPath, CancellationToken token)
+        {
+            Native.UI.ExecuteOnMainThread(() =>
+            {
+                ReloadPluginUnsafe(plugin, newAssemblyPath, token);
+            });
         }
 
         public void UnloadPlugin(Plugin plugin, CancellationToken token = default(CancellationToken))
         {
-            if (plugin.Instance != null)
+            Native.UI.ExecuteOnMainThread(() =>
             {
-                UnloadPluginInstance(plugin, token);
-                plugin.Instance = null;
-            }
+                if (plugin.Instance != null)
+                {
+                    UnloadPluginInstance(plugin, token);
+                    plugin.Instance = null;
+                }
 
-            if (plugin.Loader != null)
-            {
-                plugin.Loader.UnloadCurrent();
-                plugin.Loader = null;
-            }
+                if (plugin.Loader != null)
+                {
+                    plugin.Loader.UnloadCurrent();
+                    plugin.Loader = null;
+                }
+            });
+
         }
 
     }

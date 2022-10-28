@@ -114,7 +114,8 @@ namespace Dotx64Dbg
             // Successfully built.
             plugin.RequiresRebuild = false;
 
-            return ReloadPlugin(plugin, res.OutputAssemblyPath, token);
+            ReloadPlugin(plugin, res.OutputAssemblyPath, token);
+            return true;
         }
 
         void RebuildPlugins(System.Threading.CancellationToken token)
@@ -144,10 +145,7 @@ namespace Dotx64Dbg
                 {
                     if (InitializePluginFromCache(plugin, cacheFile))
                     {
-                        if (ReloadPlugin(plugin, plugin.AssemblyPath, token))
-                        {
-                            Utils.DebugPrintLine($"Loaded plugin '{plugin.Info.Name}' from cache");
-                        }
+                        ReloadPlugin(plugin, plugin.AssemblyPath, token);
                         DeleteNotUsedPluginCache(plugin);
                         plugin.RequiresRebuild = false;
                         return;

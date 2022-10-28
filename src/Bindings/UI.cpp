@@ -3,14 +3,47 @@
 #include "pluginsdk/_scriptapi_gui.h"
 
 #include "Marshal.hpp"
+#include <msclr\lock.h>
 
 #pragma comment(lib, "Gdi32.lib")
 
 using namespace System;
+using namespace System::Collections;
 using namespace System::Runtime::InteropServices;
 
 namespace Dotx64Dbg::Native
 {
+    public delegate void ExecuteCallback(void);
+
+    public ref class ExecutionQueue
+    {
+    internal:
+        static System::Collections::Generic::Queue<ExecuteCallback^>^ queue = gcnew System::Collections::Generic::Queue<ExecuteCallback^>();
+
+        static void AddCallback(ExecuteCallback^ cb)
+        {
+            msclr::lock l(queue);
+            queue->Enqueue(cb);
+        }
+
+        static void ExecuteNextInQueue()
+        {
+            ExecuteCallback^ cb = nullptr;
+            {
+                msclr::lock l(queue);
+                if (queue->Count > 0)
+                    cb = queue->Dequeue();
+            }
+            if (cb != nullptr)
+                cb();
+        }
+    };
+
+    static void ExecuteCallbackWrapper()
+    {
+        ExecutionQueue::ExecuteNextInQueue();
+    }
+
     public ref class UI
     {
     public:
@@ -288,5 +321,12 @@ namespace Dotx64Dbg::Native
 
             return interop::stringFromUTF8(buf.get());
         }
+
+        static void ExecuteOnMainThread(ExecuteCallback^ cb)
+        {
+            ExecutionQueue::AddCallback(cb);
+            GuiExecuteOnGuiThread(ExecuteCallbackWrapper);
+        }
+
     };
 }
